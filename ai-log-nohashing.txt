@@ -1,0 +1,212 @@
+Prompt1：
+Please help me find all password-security-related code paths in this project.
+Focus on:
+- login / sign-in
+- password handling
+- forgot password / reset password
+- password storage in SharedPreferences, SQLite, or files
+- Hash method
+For each finding, list:
+1. Class name
+2. Method name
+3. Code snippet (short, relevant part only)
+4. Generator API / helper used (e.g., Random, SecureRandom, UUID, MessageDigest, Cipher)
+5. Security role (choose one: UI-only, identifier, token, session ID, verification code, password hash, cryptographic key)
+6. Why this value is used in the system (short explanation)
+7. Whether this is security-sensitive (Yes/No)
+8. Whether this might be insecure for randomness/cryptography (Yes/No, with reason)
+Codex：
+I reviewed the app’s own code under com.example.mastg_test0016 and found that the password-related logic is concentrated in MainActivity.java, Login.java, and Profile.java. There is no forgot/reset flow and no password hashing implementation in the app package.
+Findings
+1.	Class name: Login
+Method name: onCreate (Login.java (line 32))
+Code snippet:
+((Button) findViewById(R.id.button2)).setOnClickListener(new View.OnClickListener() {
+    public void onClick(View view) throws Throwable {
+        boolean ok = Login.this.checkCredentials(
+            editText.getText().toString(),
+            editText2.getText().toString()
+        );
+        if (!ok) { ... }
+        Login.this.createSession();
+        Login.this.startActivity(new Intent(Login.this, Profile.class));
+    }
+});
+Generator API / helper used: None
+Security role: UI-only
+Why this value is used in the system: Collects username/password from the login screen and starts authentication.
+Whether this is security-sensitive: Yes
+Whether this might be insecure for randomness/cryptography: No for randomness/crypto itself; this is UI flow, not a crypto primitive.
+2.	Class name: Login
+Method name: checkCredentials (Login.java (line 71))
+Code snippet:
+fileInputStreamOpenFileInput = openFileInput("credentials.txt");
+...
+String[] parts = line.split(" ");
+if (parts.length == 4 && parts[0].equals("Username:") && parts[2].equals("Password:")) {
+    String savedUser = parts[1].trim();
+    String savedPass = parts[3].trim();
+    if (str.equals(savedUser) && str2.equals(savedPass)) {
+        return true;
+    }
+}
+Generator API / helper used: FileInputStream, InputStreamReader, BufferedReader
+Security role: UI-only
+Why this value is used in the system: Reads stored credentials and compares the entered password directly against the saved password.
+Whether this is security-sensitive: Yes
+Whether this might be insecure for randomness/cryptography: Yes; password verification is done in plaintext, with no hash/KDF at all.
+3.	Class name: MainActivity
+Method name: saveCredentialsToFile (MainActivity.java (line 54))
+Code snippet:
+fileOutputStreamOpenFileOutput = openFileOutput("credentials.txt", 32768);
+fileOutputStreamOpenFileOutput.write(
+    ("Username: " + str + " Password: " + str2 + "\n").getBytes()
+);
+Generator API / helper used: FileOutputStream via openFileOutput
+Security role: UI-only
+Why this value is used in the system: Stores the user’s chosen username and password for later login checks.
+Whether this is security-sensitive: Yes
+Whether this might be insecure for randomness/cryptography: Yes; password is stored in plaintext in an app file, not hashed or encrypted.
+4.	Class name: Login
+Method name: createSession (Login.java (line 174))
+Code snippet:
+this.editor.putString(KEY_SESSION_TOKEN, generateSessionToken());
+this.editor.apply();
+Generator API / helper used: SharedPreferences.Editor.putString
+Security role: session ID
+Why this value is used in the system: Saves the post-login session token so the app can keep track of logged-in state.
+Whether this is security-sensitive: Yes
+Whether this might be insecure for randomness/cryptography: Yes; the stored value is security-relevant session state, and it comes from an insecure generator below.
+5.	Class name: Login
+Method name: generateSessionToken (Login.java (line 183))
+Code snippet:
+Random random = new Random();
+StringBuilder sb = new StringBuilder(16);
+for (int i = 0; i < 16; i++) {
+    sb.append("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        .charAt(random.nextInt(62)));
+}
+return sb.toString();
+Generator API / helper used: java.util.Random
+Security role: session ID
+Why this value is used in the system: Generates the session token written into SharedPreferences after successful login.
+Whether this is security-sensitive: Yes
+Whether this might be insecure for randomness/cryptography: Yes; Random is predictable and not appropriate for session/token generation. SecureRandom should be used instead.
+6.	Class name: Profile
+Method name: clearSession (Profile.java (line 49))
+Code snippet:
+this.editor.remove(KEY_SESSION_TOKEN);
+this.editor.apply();
+Generator API / helper used: SharedPreferences.Editor.remove
+Security role: session ID
+Why this value is used in the system: Logs the user out by deleting the stored session token.
+Whether this is security-sensitive: Yes
+Whether this might be insecure for randomness/cryptography: No; this is token removal, not generation.
+Not Found
+•	Forgot password / reset password: no app code or login layout elements matched this flow. activity_login.xml only contains username, password, and login button.
+•	Password storage in SharedPreferences: not found. SharedPreferences is used only for sessionToken, not password.
+•	Password storage in SQLite: not found.
+•	Hash method: none found in com.example.mastg_test0016; no MessageDigest, Cipher, PBKDF2, bcrypt, scrypt, or argon usage in the app package.
+Bottom line
+The main password-security issues are:
+•	plaintext password storage in credentials.txt
+•	plaintext password comparison during login
+•	insecure session token generation with java.util.Random
+If you want, I can turn this into a cleaner audit table or map each finding to MASVS/MSTG weaknesses next.
+
+Prompt2：
+Focus ONLY on cryptographic hashing usage.
+Your task:
+Search the entire project for any hashing-related code, including:
+- MessageDigest
+- hash, md5, sha1, sha256, sha-1, sha-256
+- any custom hashing logic
+- any encoding that might be used instead of hashing (e.g., Base64)
+
+For each finding, provide:
+1. class name
+2. method name
+3. code snippet
+4. hash algorithm used (if any)
+5. what the hash is used for (password, token, etc.)
+6. whether it is secure or insecure (with reason)
+
+If NO hashing is found:
+- explicitly confirm that no hashing is used
+- explain what this implies for password security
+- explain whether this can be considered a cryptographic misuse
+
+Codex：
+I found **no cryptographic hashing usage in the app’s own code** under `com.example.mastg_test0016`.
+
+**App Code Findings**
+
+There are **no matches** in the application code for:
+- `MessageDigest`
+- `md5`
+- `sha1` / `sha-1`
+- `sha256` / `sha-256`
+- `Base64`
+- custom digest/hash helpers
+
+That means there is **no password hashing code at all** in:
+- [MainActivity.java](/d:/Courses/Info%205995/a1/APK/Source%20code/com/example.mastg_test0016/MainActivity.java)
+- [Login.java](/d:/Courses/Info%205995/a1/APK/Source%20code/com/example.mastg_test0016/Login.java)
+- [Profile.java](/d:/Courses/Info%205995/a1/APK/Source%20code/com/example.mastg_test0016/Profile.java)
+
+Instead, the app stores and compares passwords in plaintext:
+
+Snippet from [MainActivity.java:62](/d:/Courses/Info%205995/a1/APK/Source%20code/com/example.mastg_test0016/MainActivity.java#L62):
+```java
+fileOutputStreamOpenFileOutput = openFileOutput("credentials.txt", 32768);
+fileOutputStreamOpenFileOutput.write(("Username: " + str + " Password: " + str2 + "\n").getBytes());
+```
+
+Snippet from [Login.java:77](/d:/Courses/Info%205995/a1/APK/Source%20code/com/example.mastg_test0016/Login.java#L77):
+```java
+fileInputStreamOpenFileInput = openFileInput("credentials.txt");
+...
+if (str.equals(strTrim) && str2.equals(strTrim2)) {
+    return true;
+}
+```
+
+For your requested fields, the result is:
+
+1. Class name: `None in app code`
+2. Method name: `None in app code`
+3. Code snippet: `No hashing snippet exists`
+4. Hash algorithm used: `None`
+5. What the hash is used for: `Not applicable`
+6. Whether it is secure or insecure: `Insecure`, because no hashing is used at all; passwords are handled and stored as plaintext.
+
+**Non-app Artifact Found**
+
+I did find `SHA-256-Digest` entries in APK signing metadata such as:
+- [ANDROIDD.SF](/d:/Courses/Info%205995/a1/APK/Resource/META-INF/ANDROIDD.SF)
+- [MANIFEST.MF](/d:/Courses/Info%205995/a1/APK/Resource/META-INF/MANIFEST.MF)
+
+Example snippet:
+```text
+SHA-256-Digest-Manifest: ...
+SHA-256-Digest: ...
+```
+
+These are **not application logic**, have **no class/method**, and are used for **APK signature/integrity metadata**, not for passwords.
+
+**What this implies for password security**
+
+Because no hashing is used:
+- passwords are **not protected at rest**
+- password verification is done by **direct plaintext comparison**
+- anyone who can access the app file containing `credentials.txt` can recover the password immediately
+- there is no salting, no KDF, and no resistance to offline disclosure
+
+**Is this cryptographic misuse?**
+
+Yes. This can reasonably be considered **cryptographic misuse / missing cryptographic protection**:
+- the app handles passwords but does **not hash them**
+- it uses **no password hashing/KDF** such as PBKDF2, bcrypt, scrypt, or Argon2
+- storing plaintext passwords is a serious security flaw
+
+If you want, I can next produce a very short “report-ready” paragraph you can paste into an assignment or security audit.
